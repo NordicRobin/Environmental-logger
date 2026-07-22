@@ -139,7 +139,7 @@ function renderDeviceButtons() {
   }
 
   const compareBtn = document.createElement("button");
-  compareBtn.textContent = "Compare";
+  compareBtn.textContent = "Sammenlign";
   compareBtn.classList.toggle("active", activeView === "compare");
   compareBtn.addEventListener("click", () => select("compare", compareBtn));
   deviceButtonsEl.appendChild(compareBtn);

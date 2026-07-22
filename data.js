@@ -16,6 +16,17 @@ export async function getDevices() {
   return res.json();
 }
 
+export async function getStatus(deviceId) {
+  try {
+    const res = await fetch(`data/${deviceId}/status.json?_=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
+  } catch (err) {
+    console.warn(`No status available for ${deviceId}:`, err.message);
+    return null;
+  }
+}
+
 function demoSeries(startMs, endMs, points, base, amplitude, min, max) {
   const step = (endMs - startMs) / points;
   const series = [];

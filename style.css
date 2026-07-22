@@ -107,6 +107,33 @@ main {
   color: #fff;
 }
 
+.battery {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.battery.ok {
+  color: #1e7e34;
+}
+
+.battery.mid {
+  color: #a06a00;
+}
+
+.battery.low {
+  color: #c0392b;
+}
+
+.device-buttons button.active .battery {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
 .status {
   color: var(--muted);
   font-size: 0.85rem;

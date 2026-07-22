@@ -6,7 +6,8 @@
 //
 // Merges into data/<device.id>/history.jsonl (deduped, pruned to RETAIN_MS) and
 // regenerates the downsampled data/<device.id>/24h.json, 2w.json, 3m.json files
-// the frontend reads.
+// the frontend reads. Also writes data/<device.id>/status.json with the most
+// recent battery state of charge (LwM2M object 14202 "Battery and Power").
 //
 // The API only serves ~30 days per request (timeSpan=lastMonth), so the 3-month
 // view fills in gradually as this workflow keeps running over time.
@@ -15,6 +16,7 @@ import path from "node:path";
 
 const API_BASE = "https://api.hello.nordicsemi.cloud/2024-04-17";
 const ENVIRONMENT_OBJECT_ID = 14205;
+const BATTERY_OBJECT_ID = 14202;
 
 const ROOT_DIR = path.resolve(import.meta.dirname, "..");
 const DEVICES_FILE = path.join(ROOT_DIR, "devices.json");
@@ -41,14 +43,14 @@ async function resolveDeviceId(fingerprint) {
   return body.id;
 }
 
-async function fetchEnvironmentHistory(deviceId, fingerprint, timeSpan) {
-  const url = new URL(`${API_BASE}/device/${deviceId}/history/${ENVIRONMENT_OBJECT_ID}/0`);
+async function fetchObjectHistory(objectId, deviceId, fingerprint, timeSpan) {
+  const url = new URL(`${API_BASE}/device/${deviceId}/history/${objectId}/0`);
   url.searchParams.set("fingerprint", fingerprint);
   url.searchParams.set("timeSpan", timeSpan);
 
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) {
-    throw new Error(`history(${timeSpan}) for ${deviceId} failed: ${res.status} ${await res.text()}`);
+    throw new Error(`history(${objectId}, ${timeSpan}) for ${deviceId} failed: ${res.status} ${await res.text()}`);
   }
   const body = await res.json();
   return body.partialInstances ?? [];
@@ -98,7 +100,7 @@ async function processDevice(device, nowMs) {
   const merged = new Map(existing.map((r) => [`${r.type}:${r.ts}`, r]));
 
   for (const timeSpan of TIME_SPANS) {
-    const instances = await fetchEnvironmentHistory(deviceId, device.fingerprint, timeSpan);
+    const instances = await fetchObjectHistory(ENVIRONMENT_OBJECT_ID, deviceId, device.fingerprint, timeSpan);
     for (const instance of instances) {
       const ts = Number(instance["99"]) * 1000;
       if (!Number.isFinite(ts)) continue;
@@ -137,6 +139,25 @@ async function processDevice(device, nowMs) {
       ),
     );
   }
+
+  const batteryInstances = await fetchObjectHistory(BATTERY_OBJECT_ID, deviceId, device.fingerprint, "lastDay");
+  const latestBattery = batteryInstances.reduce(
+    (latest, instance) => (Number(instance["99"]) > (latest?.["99"] ?? -Infinity) ? instance : latest),
+    null,
+  );
+  await writeFile(
+    path.join(deviceDir, "status.json"),
+    JSON.stringify(
+      {
+        updatedAt: new Date(nowMs).toISOString(),
+        reportedAt: latestBattery ? new Date(Number(latestBattery["99"]) * 1000).toISOString() : null,
+        stateOfCharge: latestBattery ? Number(latestBattery["0"]) : null,
+        batteryVoltage: latestBattery ? Number(latestBattery["1"]) : null,
+      },
+      null,
+      2,
+    ),
+  );
 
   console.log(`[${device.id}] history now has ${pruned.length} points, refreshed range files.`);
 }

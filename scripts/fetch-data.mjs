@@ -1,8 +1,11 @@
-// Pulls temperature/humidity history from hello.nrfcloud.com's public device API
-// (LwM2M object 14205 "Environment": resource 0 = temperature °C, resource 1 =
-// humidity %, resource 99 = timestamp) using just the device's public fingerprint —
-// no API key needed. Merges into data/history.jsonl (deduped, pruned to RETAIN_MS)
-// and regenerates the downsampled data/24h.json, data/2w.json, data/3m.json files
+// For every device listed in devices.json, resolves its internal device ID from
+// its public fingerprint, then pulls temperature/humidity history from
+// hello.nrfcloud.com's public device API (LwM2M object 14205 "Environment":
+// resource 0 = temperature °C, resource 1 = humidity %, resource 99 = timestamp).
+// No API key needed — the fingerprint is the device's public, shareable QR code.
+//
+// Merges into data/<device.id>/history.jsonl (deduped, pruned to RETAIN_MS) and
+// regenerates the downsampled data/<device.id>/24h.json, 2w.json, 3m.json files
 // the frontend reads.
 //
 // The API only serves ~30 days per request (timeSpan=lastMonth), so the 3-month
@@ -11,16 +14,11 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 const API_BASE = "https://api.hello.nordicsemi.cloud/2024-04-17";
-const DEVICE_ID = process.env.HELLO_NRFCLOUD_DEVICE_ID;
-const FINGERPRINT = process.env.HELLO_NRFCLOUD_FINGERPRINT;
 const ENVIRONMENT_OBJECT_ID = 14205;
 
-if (!DEVICE_ID || !FINGERPRINT) {
-  throw new Error("HELLO_NRFCLOUD_DEVICE_ID and HELLO_NRFCLOUD_FINGERPRINT must be set");
-}
-
-const DATA_DIR = path.resolve(import.meta.dirname, "../data");
-const HISTORY_FILE = path.join(DATA_DIR, "history.jsonl");
+const ROOT_DIR = path.resolve(import.meta.dirname, "..");
+const DEVICES_FILE = path.join(ROOT_DIR, "devices.json");
+const DATA_DIR = path.join(ROOT_DIR, "data");
 
 // Fetch both: lastMonth for broad coverage, lastDay for the finest recent resolution.
 const TIME_SPANS = ["lastMonth", "lastDay"];
@@ -32,22 +30,33 @@ const RANGES = {
 };
 const MAX_POINTS_PER_SERIES = 1500;
 
-async function fetchEnvironmentHistory(timeSpan) {
-  const url = new URL(`${API_BASE}/device/${DEVICE_ID}/history/${ENVIRONMENT_OBJECT_ID}/0`);
-  url.searchParams.set("fingerprint", FINGERPRINT);
+async function resolveDeviceId(fingerprint) {
+  const url = new URL(`${API_BASE}/device`);
+  url.searchParams.set("fingerprint", fingerprint);
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) {
+    throw new Error(`device lookup for ${fingerprint} failed: ${res.status} ${await res.text()}`);
+  }
+  const body = await res.json();
+  return body.id;
+}
+
+async function fetchEnvironmentHistory(deviceId, fingerprint, timeSpan) {
+  const url = new URL(`${API_BASE}/device/${deviceId}/history/${ENVIRONMENT_OBJECT_ID}/0`);
+  url.searchParams.set("fingerprint", fingerprint);
   url.searchParams.set("timeSpan", timeSpan);
 
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) {
-    throw new Error(`history(${timeSpan}) failed: ${res.status} ${await res.text()}`);
+    throw new Error(`history(${timeSpan}) for ${deviceId} failed: ${res.status} ${await res.text()}`);
   }
   const body = await res.json();
   return body.partialInstances ?? [];
 }
 
-async function readHistory() {
+async function readHistory(historyFile) {
   try {
-    const text = await readFile(HISTORY_FILE, "utf8");
+    const text = await readFile(historyFile, "utf8");
     return text
       .split("\n")
       .filter(Boolean)
@@ -78,15 +87,18 @@ function bucketDownsample(points, maxPoints) {
   return buckets;
 }
 
-async function main() {
-  await mkdir(DATA_DIR, { recursive: true });
+async function processDevice(device, nowMs) {
+  const deviceDir = path.join(DATA_DIR, device.id);
+  await mkdir(deviceDir, { recursive: true });
+  const historyFile = path.join(deviceDir, "history.jsonl");
 
-  const nowMs = Date.now();
-  const existing = await readHistory();
+  const deviceId = await resolveDeviceId(device.fingerprint);
+
+  const existing = await readHistory(historyFile);
   const merged = new Map(existing.map((r) => [`${r.type}:${r.ts}`, r]));
 
   for (const timeSpan of TIME_SPANS) {
-    const instances = await fetchEnvironmentHistory(timeSpan);
+    const instances = await fetchEnvironmentHistory(deviceId, device.fingerprint, timeSpan);
     for (const instance of instances) {
       const ts = Number(instance["99"]) * 1000;
       if (!Number.isFinite(ts)) continue;
@@ -102,7 +114,7 @@ async function main() {
     .filter((r) => r.ts >= cutoff)
     .sort((a, b) => a.ts - b.ts);
 
-  await writeFile(HISTORY_FILE, pruned.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  await writeFile(historyFile, pruned.map((r) => JSON.stringify(r)).join("\n") + "\n");
 
   for (const [file, rangeMs] of Object.entries(RANGES)) {
     const windowStart = nowMs - rangeMs;
@@ -113,7 +125,7 @@ async function main() {
         MAX_POINTS_PER_SERIES,
       );
     await writeFile(
-      path.join(DATA_DIR, file),
+      path.join(deviceDir, file),
       JSON.stringify(
         {
           updatedAt: new Date(nowMs).toISOString(),
@@ -126,7 +138,15 @@ async function main() {
     );
   }
 
-  console.log(`History now has ${pruned.length} points, refreshed ${Object.keys(RANGES).length} range files.`);
+  console.log(`[${device.id}] history now has ${pruned.length} points, refreshed range files.`);
+}
+
+async function main() {
+  const devices = JSON.parse(await readFile(DEVICES_FILE, "utf8"));
+  const nowMs = Date.now();
+  for (const device of devices) {
+    await processDevice(device, nowMs);
+  }
 }
 
 await main();

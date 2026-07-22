@@ -23,9 +23,6 @@ jobs:
           node-version: 20
 
       - name: Fetch environment history from hello.nrfcloud.com
-        env:
-          HELLO_NRFCLOUD_DEVICE_ID: "oob-359404230261118"
-          HELLO_NRFCLOUD_FINGERPRINT: "98e.h3azf8"
         run: node scripts/fetch-data.mjs
 
       - name: Commit and push if changed

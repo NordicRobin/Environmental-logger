@@ -1,7 +1,7 @@
 const RANGE_FILES = {
-  "24h": "data/24h.json",
-  "2w": "data/2w.json",
-  "3m": "data/3m.json",
+  "24h": "24h.json",
+  "2w": "2w.json",
+  "3m": "3m.json",
 };
 
 const RANGE_MS = {
@@ -9,6 +9,12 @@ const RANGE_MS = {
   "2w": 14 * 24 * 60 * 60 * 1000,
   "3m": 90 * 24 * 60 * 60 * 1000,
 };
+
+export async function getDevices() {
+  const res = await fetch(`devices.json?_=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
 
 function demoSeries(startMs, endMs, points, base, amplitude, min, max) {
   const step = (endMs - startMs) / points;
@@ -32,9 +38,9 @@ function demoReadings(rangeKey) {
   };
 }
 
-export async function getReadings(rangeKey) {
+export async function getReadings(deviceId, rangeKey) {
   try {
-    const res = await fetch(`${RANGE_FILES[rangeKey]}?_=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch(`data/${deviceId}/${RANGE_FILES[rangeKey]}?_=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const body = await res.json();
     return {

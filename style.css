@@ -70,14 +70,24 @@ main {
   margin-bottom: 1rem;
 }
 
-.range-buttons {
+.range-buttons,
+.device-buttons {
   display: inline-flex;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
 
-.range-buttons button {
+.device-buttons {
+  margin-bottom: 1rem;
+}
+
+.device-buttons:empty {
+  display: none;
+}
+
+.range-buttons button,
+.device-buttons button {
   border: none;
   background: var(--card-bg);
   color: var(--fg);
@@ -86,11 +96,13 @@ main {
   cursor: pointer;
 }
 
-.range-buttons button + button {
+.range-buttons button + button,
+.device-buttons button + button {
   border-left: 1px solid var(--border);
 }
 
-.range-buttons button.active {
+.range-buttons button.active,
+.device-buttons button.active {
   background: var(--accent);
   color: #fff;
 }

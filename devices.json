@@ -1,4 +1,4 @@
 [
-  { "id": "device-1", "name": "Thingy:91X #1", "fingerprint": "98e.h3azf8" },
-  { "id": "device-2", "name": "Thingy:91X #2", "fingerprint": "98e.j2n73y" }
+  { "id": "device-1", "name": "Rom K02", "fingerprint": "98e.h3azf8" },
+  { "id": "device-2", "name": "Rom K03", "fingerprint": "98e.j2n73y" }
 ]

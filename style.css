@@ -72,10 +72,9 @@ main {
 
 .range-buttons,
 .device-buttons {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .device-buttons {
@@ -88,22 +87,20 @@ main {
 
 .range-buttons button,
 .device-buttons button {
-  border: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
   background: var(--card-bg);
   color: var(--fg);
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
+  white-space: nowrap;
   cursor: pointer;
-}
-
-.range-buttons button + button,
-.device-buttons button + button {
-  border-left: 1px solid var(--border);
 }
 
 .range-buttons button.active,
 .device-buttons button.active {
   background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -152,6 +149,16 @@ main {
   margin: 0 0 0.75rem;
   font-size: 1rem;
   color: var(--muted);
+}
+
+.chart-wrap {
+  height: 260px;
+}
+
+@media (max-width: 480px) {
+  .chart-wrap {
+    height: 220px;
+  }
 }
 
 footer {

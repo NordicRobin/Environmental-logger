@@ -34,6 +34,7 @@ function makeChart(canvasId) {
     data: { datasets: [] },
     options: {
       animation: false,
+      maintainAspectRatio: false,
       scales: {
         x: {
           type: "time",

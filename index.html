@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thingy:91X Dashboard</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Thingy:91X — Temperature &amp; Humidity</h1>
+    <p class="subtitle" id="device-label"></p>
+  </header>
+
+  <main>
+    <div id="demo-banner" class="banner" hidden>
+      Showing sample data — waiting for the scheduled GitHub Action to publish real readings.
+    </div>
+
+    <div class="controls">
+      <div class="range-buttons" role="group" aria-label="Time range">
+        <button data-range="24h" class="active">24 hours</button>
+        <button data-range="2w">2 weeks</button>
+        <button data-range="3m">3 months</button>
+      </div>
+      <span id="status" class="status"></span>
+    </div>
+
+    <section class="chart-card">
+      <h2>Temperature (&deg;C)</h2>
+      <canvas id="temperature-chart" height="90"></canvas>
+    </section>
+
+    <section class="chart-card">
+      <h2>Humidity (%RH)</h2>
+      <canvas id="humidity-chart" height="90"></canvas>
+    </section>
+  </main>
+
+  <footer>
+    <span id="last-updated"></span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@3/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+  <script src="config.js"></script>
+  <script type="module" src="data.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

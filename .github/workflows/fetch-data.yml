@@ -1,0 +1,37 @@
+name: Fetch sensor data
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch environment history from hello.nrfcloud.com
+        env:
+          HELLO_NRFCLOUD_DEVICE_ID: "oob-359404230261118"
+          HELLO_NRFCLOUD_FINGERPRINT: "98e.h3azf8"
+        run: node scripts/fetch-data.mjs
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --quiet --cached || git commit -m "Update sensor data"
+          git push

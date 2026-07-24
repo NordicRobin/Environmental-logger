@@ -2,6 +2,7 @@ import { getDevices, getReadings, getStatus } from "./data.js";
 
 const deviceLabelEl = document.getElementById("device-label");
 const deviceButtonsEl = document.getElementById("device-buttons");
+const summaryEl = document.getElementById("latest-summary");
 const statusEl = document.getElementById("status");
 const bannerEl = document.getElementById("demo-banner");
 const lastUpdatedEl = document.getElementById("last-updated");
@@ -114,6 +115,27 @@ function renderDeviceLabel() {
   deviceLabelEl.innerHTML = parts.join(" · ");
 }
 
+function formatMetric(value) {
+  return value == null ? "–" : value.toFixed(1);
+}
+
+function renderSummary() {
+  summaryEl.innerHTML = "";
+  devices.forEach((device, i) => {
+    const status = statusById.get(device.id);
+    const card = document.createElement("div");
+    card.className = "summary-card";
+    card.style.borderTopColor = DEVICE_COLORS[i % DEVICE_COLORS.length];
+    card.innerHTML = `
+      <div class="summary-name">${device.name ?? device.id}</div>
+      <div class="summary-readings">
+        <span class="reading"><strong>${formatMetric(status?.temperature)}</strong> °C</span>
+        <span class="reading"><strong>${formatMetric(status?.humidity)}</strong> %RH</span>
+      </div>`;
+    summaryEl.appendChild(card);
+  });
+}
+
 function batteryBadge(deviceId) {
   const status = statusById.get(deviceId);
   if (!status || status.stateOfCharge == null) return "";
@@ -154,14 +176,22 @@ rangeButtons.forEach((btn) => {
   });
 });
 
+async function refreshStatuses() {
+  statusById = new Map(
+    await Promise.all(devices.map(async (d) => [d.id, await getStatus(d.id)])),
+  );
+  renderSummary();
+  renderDeviceButtons();
+  renderDeviceLabel();
+}
+
 devices = await getDevices();
-statusById = new Map(
-  await Promise.all(devices.map(async (d) => [d.id, await getStatus(d.id)])),
-);
 activeView = devices[0].id;
-renderDeviceButtons();
-renderDeviceLabel();
+await refreshStatuses();
 loadReadings();
 
 // Refresh the current view periodically so the page stays live for visitors.
-setInterval(() => loadReadings(), 5 * 60 * 1000);
+setInterval(async () => {
+  await refreshStatuses();
+  loadReadings();
+}, 5 * 60 * 1000);

@@ -61,6 +61,48 @@ main {
   font-size: 0.9rem;
 }
 
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.summary:empty {
+  display: none;
+}
+
+.summary-card {
+  flex: 1 1 160px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.summary-name {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.summary-readings {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.reading {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.reading strong {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
 .controls {
   display: flex;
   align-items: center;

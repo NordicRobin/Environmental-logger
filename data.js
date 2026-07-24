@@ -45,6 +45,7 @@ function demoReadings(rangeKey) {
   return {
     temperature: demoSeries(startMs, endMs, 200, 21, 0.4, 15, 30),
     humidity: demoSeries(startMs, endMs, 200, 45, 1.5, 20, 70),
+    bounds: { temperature: null, humidity: null },
     isDemo: true,
   };
 }
@@ -57,6 +58,7 @@ export async function getReadings(deviceId, rangeKey) {
     return {
       temperature: body.temperature ?? [],
       humidity: body.humidity ?? [],
+      bounds: body.bounds ?? { temperature: null, humidity: null },
       updatedAt: body.updatedAt,
       isDemo: false,
     };

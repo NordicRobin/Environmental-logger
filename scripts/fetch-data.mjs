@@ -10,9 +10,12 @@
 // recent battery state of charge (LwM2M object 14202 "Battery and Power") and
 // the latest temperature/humidity reading.
 //
-// history.jsonl keeps the raw readings; the range files and the latest values in
-// status.json have isolated spikes removed (see outlierTimestamps) so a device
-// being handled or moved to charge doesn't distort the graphs' scaling.
+// history.jsonl keeps the raw readings, and the range files include every reading
+// too. Each range file also carries per-series `bounds` computed from the
+// non-outlier readings only (see outlierTimestamps): the frontend scales each
+// graph's y-axis to those bounds, so isolated spikes (from a device being handled
+// or moved to charge) run off the top/bottom instead of flattening the rest of the
+// data. status.json reports the latest non-outlier reading as the "current" value.
 //
 // The API only serves ~30 days per request (timeSpan=lastMonth), so the 3-month
 // view fills in gradually as this workflow keeps running over time.
@@ -160,8 +163,9 @@ async function processDevice(device, nowMs) {
   await writeFile(historyFile, pruned.map((r) => JSON.stringify(r)).join("\n") + "\n");
 
   // Temperature and humidity share a timestamp (same LwM2M reading), and handling
-  // a device corrupts both at once, so drop every reading at any timestamp flagged
-  // as a spike in either series. Everything downstream uses this cleaned view.
+  // a device corrupts both at once, so a spike in either series marks that whole
+  // timestamp as an outlier. The readings are NOT dropped — this set is only used
+  // to compute graph y-axis bounds and the "current" reading in status.json.
   const badTimestamps = new Set();
   for (const type of ["TEMP", "HUMID"]) {
     const readings = pruned.filter((r) => r.type === type);
@@ -171,14 +175,28 @@ async function processDevice(device, nowMs) {
   }
   const clean = pruned.filter((r) => !badTimestamps.has(r.ts));
 
+  const rangeBounds = (readings) => {
+    if (readings.length === 0) return null;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const r of readings) {
+      if (r.value < min) min = r.value;
+      if (r.value > max) max = r.value;
+    }
+    return { min, max };
+  };
+
   for (const [file, rangeMs] of Object.entries(RANGES)) {
     const windowStart = nowMs - rangeMs;
-    const inWindow = clean.filter((r) => r.ts >= windowStart);
+    const inWindow = pruned.filter((r) => r.ts >= windowStart);
+    const cleanInWindow = clean.filter((r) => r.ts >= windowStart);
     const series = (type) =>
       bucketDownsample(
         inWindow.filter((r) => r.type === type).map((r) => ({ t: r.ts, v: r.value })),
         MAX_POINTS_PER_SERIES,
       );
+    // Bounds ignore outliers so the axis fits the normal data; spikes clip off-screen.
+    const bounds = (type) => rangeBounds(cleanInWindow.filter((r) => r.type === type));
     await writeFile(
       path.join(deviceDir, file),
       JSON.stringify(
@@ -186,6 +204,7 @@ async function processDevice(device, nowMs) {
           updatedAt: new Date(nowMs).toISOString(),
           temperature: series("TEMP"),
           humidity: series("HUMID"),
+          bounds: { temperature: bounds("TEMP"), humidity: bounds("HUMID") },
         },
         null,
         2,
@@ -219,7 +238,7 @@ async function processDevice(device, nowMs) {
   );
 
   console.log(
-    `[${device.id}] history ${pruned.length} points, ${badTimestamps.size} spike timestamp(s) removed from graphs.`,
+    `[${device.id}] history ${pruned.length} points, ${badTimestamps.size} spike timestamp(s) excluded from y-axis bounds.`,
   );
 }
 

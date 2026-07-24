@@ -72,6 +72,24 @@ function setChartDatasets(chart, datasets) {
   chart.update();
 }
 
+// Scale the y-axis to the non-outlier data range (union across the shown devices)
+// with a little padding, so spikes run off the top/bottom instead of flattening
+// everything else. Falls back to Chart.js auto-scaling when no bounds are given.
+function applyYBounds(chart, boundsList) {
+  const valid = boundsList.filter(Boolean);
+  const y = chart.options.scales.y;
+  if (valid.length === 0) {
+    y.min = undefined;
+    y.max = undefined;
+    return;
+  }
+  const min = Math.min(...valid.map((b) => b.min));
+  const max = Math.max(...valid.map((b) => b.max));
+  const pad = max > min ? (max - min) * 0.08 : 1;
+  y.min = min - pad;
+  y.max = max + pad;
+}
+
 let devices = [];
 let statusById = new Map();
 let activeView = null; // a device id, or "compare"
@@ -85,6 +103,9 @@ async function loadReadings() {
 
   const results = await Promise.all(targets.map((d) => getReadings(d.id, activeRange)));
   bannerEl.hidden = !results.some((r) => r.isDemo);
+
+  applyYBounds(temperatureChart, results.map((r) => r.bounds?.temperature));
+  applyYBounds(humidityChart, results.map((r) => r.bounds?.humidity));
 
   setChartDatasets(
     temperatureChart,

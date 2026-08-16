@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-08-16T17:20:18.188Z",
-  "reportedAt": "2026-08-16T17:15:00.000Z",
+  "updatedAt": "2026-08-16T18:30:47.616Z",
+  "reportedAt": "2026-08-16T18:15:00.000Z",
   "stateOfCharge": 65,
   "batteryVoltage": 3.871999979019165,
-  "temperature": 17.261938,
-  "humidity": 72.234985,
-  "environmentReportedAt": "2026-08-16T17:15:00.000Z"
+  "temperature": 17.219282,
+  "humidity": 72.454994,
+  "environmentReportedAt": "2026-08-16T18:15:00.000Z"
 }
